@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "notes": [
+    "These are the fixed public probe subsets used by the reproducibility framework.",
+    "Generation and calibration code is intentionally not included in this repo.",
+    "EQ probe files are first-pass-only variants.",
+    "The canonical filename eq_140.json is preserved for continuity, but the shipped file currently contains 139 records."
+  ],
+  "datasets": [
+    {
+      "name": "math_16",
+      "path": "datasets/math_16.json",
+      "category": "math",
+      "canonical_public_name": "math_16",
+      "source_filename": "math_dataset_16_hard.json",
+      "record_count": 16,
+      "intended_use": "fast scan / calibration-sized math probe set",
+      "sha256": "d1907520d476b257fe8f052c4098d4c130f36e52ab53d042da04e23be8345727"
+    },
+    {
+      "name": "math_120",
+      "path": "datasets/math_120.json",
+      "category": "math",
+      "canonical_public_name": "math_120",
+      "source_filename": "math_dataset_120.json",
+      "record_count": 120,
+      "intended_use": "expanded validation math probe set",
+      "sha256": "346656e0bda10c9c7bee188c01fe68f7317b98827da10f6022b96d77e7ab5d9e"
+    },
+    {
+      "name": "eq_16",
+      "path": "datasets/eq_16.json",
+      "category": "eq",
+      "canonical_public_name": "eq_16",
+      "source_filename": "eq_bench_questions_16_subset_firstpass.json",
+      "record_count": 16,
+      "first_pass_only": true,
+      "intended_use": "fast scan / calibration-sized EQ probe set",
+      "sha256": "9f98ad5f3cd3e7b5b83670d1615d03c3d1aa71a58581d033890abf3645aec345"
+    },
+    {
+      "name": "eq_140",
+      "path": "datasets/eq_140.json",
+      "category": "eq",
+      "canonical_public_name": "eq_140",
+      "source_filename": "eq_bench_questions_140_subset_firstpass.json",
+      "record_count": 139,
+      "first_pass_only": true,
+      "intended_use": "expanded validation EQ probe set",
+      "sha256": "84986ca01b8c9ced6597963dc4858122a03f0c23d60a27357893809cdfab22cf"
+    }
+  ]
+}

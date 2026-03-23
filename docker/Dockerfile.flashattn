@@ -1,0 +1,38 @@
+ARG CUDA_VERSION=12.8.0
+ARG UBUNTU_VERSION=22.04
+
+FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${UBUNTU_VERSION}
+
+ARG TORCH_VERSION=2.10.0
+ARG TORCH_CUDA=cu128
+ARG FLASH_ATTN_VERSION=2.8.3
+ARG TORCH_CUDA_ARCH_LIST=9.0
+ARG MAX_JOBS=16
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CUDA_HOME=/usr/local/cuda
+ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST}
+ENV MAX_JOBS=${MAX_JOBS}
+ENV CMAKE_BUILD_PARALLEL_LEVEL=${MAX_JOBS}
+ENV PIP_NO_CACHE_DIR=1
+
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-venv \
+    python3-pip \
+    git \
+    build-essential \
+    ninja-build \
+    cmake \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
+
+RUN python -m pip install --upgrade pip wheel setuptools \
+    && pip install --index-url https://download.pytorch.org/whl/${TORCH_CUDA} \
+        torch==${TORCH_VERSION}+${TORCH_CUDA} \
+    && pip install --no-build-isolation flash-attn==${FLASH_ATTN_VERSION}
+
+WORKDIR /workspace

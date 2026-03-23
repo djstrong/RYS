@@ -1,0 +1,13 @@
+ARG BASE_IMAGE=flashattn-cu128:py310
+FROM ${BASE_IMAGE}
+
+ENV PIP_NO_CACHE_DIR=1
+
+COPY docker/requirements.exllama.txt /tmp/requirements.exllama.txt
+
+RUN python -m pip install --upgrade pip wheel setuptools \
+    && pip install --pre --extra-index-url https://download.pytorch.org/whl/cu128 \
+        transformers==5.0.0rc3 \
+    && pip install -r /tmp/requirements.exllama.txt
+
+WORKDIR /workspace/repo

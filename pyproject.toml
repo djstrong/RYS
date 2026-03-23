@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rys-repro"
+version = "0.1.0"
+description = "Reproducibility framework for relayering experiments"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "accelerate",
+    "huggingface-hub>=1.3.3",
+    "matplotlib>=3.10.8",
+    "numpy>=1.26",
+    "safetensors>=0.7.0",
+    "torch",
+    "tqdm>=4.66",
+    "transformers>=5.0.0rc0",
+    "xgboost>=3.2.0",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["src*", "hf_export*"]
+
+[tool.uv]
+prerelease = "allow"
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }

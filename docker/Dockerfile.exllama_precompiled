@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1.4
+ARG BASE_IMAGE=flashattn-cu128:py310
+FROM ${BASE_IMAGE}
+
+ENV PIP_NO_CACHE_DIR=1 \
+    TORCH_EXTENSIONS_DIR=/opt/torch_extensions \
+    EXLLAMAV3_PATH=/workspace/exllamav3 \
+    PYTHONPATH=/workspace/exllamav3:$PYTHONPATH
+
+ARG TORCH_CUDA_ARCH_LIST=9.0
+ARG MAX_JOBS=4
+
+ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST} \
+    MAX_JOBS=${MAX_JOBS}
+
+COPY docker/requirements.exllama.txt /tmp/requirements.exllama.txt
+
+RUN python -m pip install --upgrade pip wheel setuptools \
+    && pip install --pre --extra-index-url https://download.pytorch.org/whl/cu128 \
+        transformers==5.0.0rc3 \
+    && pip install -r /tmp/requirements.exllama.txt
+
+COPY --from=exllamav3 / /workspace/exllamav3
+
+RUN mkdir -p /workspace/repo
+
+# Precompile exllamav3_ext (CPU-only build; no model load)
+RUN python - <<'PY'
+import sys
+sys.path.insert(0, "/workspace/exllamav3")
+import exllamav3.ext  # noqa: F401
+print("exllamav3_ext built")
+PY
+
+WORKDIR /workspace/repo

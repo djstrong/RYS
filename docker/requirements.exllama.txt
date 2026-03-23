@@ -1,0 +1,11 @@
+# flash-attn is provided by the flashattn base image
+tokenizers>=0.21.1
+numpy>=2.1.0
+rich
+typing_extensions
+safetensors>=0.3.2
+ninja
+pillow
+pyyaml
+marisa_trie
+pydantic==2.11.0
