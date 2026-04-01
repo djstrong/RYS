@@ -9,6 +9,16 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import TwoSlopeNorm
+
+
+def _resolve_heatmap_cmap(cmap: str | None, norm: Any | None) -> str:
+    """Pick colormap: blue–white–red (`bwr`) when mapped with zero-centered norm; else `viridis`."""
+    if cmap is not None:
+        return cmap
+    if norm is not None and isinstance(norm, TwoSlopeNorm) and getattr(norm, "vcenter", None) == 0.0:
+        return "bwr"
+    return "viridis"
 
 
 def load_results(filepath: str | Path) -> dict[tuple[int, int], float]:
@@ -57,7 +67,7 @@ def generate_heatmap(
     output_path: str | Path,
     num_layers: int,
     *,
-    cmap: str = "viridis",
+    cmap: str | None = None,
     mask_missing: bool = False,
     vmin: float | None = None,
     vmax: float | None = None,
@@ -65,17 +75,22 @@ def generate_heatmap(
     show_baseline_marker: bool = True,
     show_best_marker: bool = True,
 ) -> None:
-    """Generate and save an absolute-score heatmap."""
+    """Generate and save an absolute-score heatmap.
+
+    When ``norm`` is a ``TwoSlopeNorm`` with ``vcenter=0`` (and ``cmap`` is left
+    default), uses ``bwr`` (blue → white → red) so zero maps to white.
+    """
+    resolved_cmap = _resolve_heatmap_cmap(cmap, norm)
     img = results_to_image(results, num_layers, mask_missing=mask_missing)
     _, best_key, _, baseline_label, best_label = _marker_labels(results)
 
     fig, ax = plt.subplots(figsize=(12, 10))
     if mask_missing:
-        cmap_obj = plt.cm.get_cmap(cmap).copy()
+        cmap_obj = plt.cm.get_cmap(resolved_cmap).copy()
         cmap_obj.set_bad(color="#B0B0B0")
         im = ax.imshow(img, cmap=cmap_obj, origin="upper", aspect="equal", vmin=vmin, vmax=vmax, norm=norm)
     else:
-        im = ax.imshow(img, cmap=cmap, origin="upper", aspect="equal", vmin=vmin, vmax=vmax, norm=norm)
+        im = ax.imshow(img, cmap=resolved_cmap, origin="upper", aspect="equal", vmin=vmin, vmax=vmax, norm=norm)
 
     cbar = plt.colorbar(im, ax=ax)
     cbar.set_label("Benchmark Score", rotation=270, labelpad=20)
@@ -134,12 +149,13 @@ def generate_difference_heatmap(
             vmax = max(abs(img.min()), abs(img.max()))
             vmin = -vmax
 
+    # Blue → white → red with 0 in the middle (symmetric vmin/vmax).
     if mask_missing:
-        cmap_obj = plt.cm.get_cmap("RdBu_r").copy()
+        cmap_obj = plt.cm.get_cmap("bwr").copy()
         cmap_obj.set_bad(color="#B0B0B0")
         im = ax.imshow(img, cmap=cmap_obj, origin="upper", aspect="equal", vmin=vmin, vmax=vmax, norm=norm)
     else:
-        im = ax.imshow(img, cmap="RdBu_r", origin="upper", aspect="equal", vmin=vmin, vmax=vmax, norm=norm)
+        im = ax.imshow(img, cmap="bwr", origin="upper", aspect="equal", vmin=vmin, vmax=vmax, norm=norm)
 
     cbar = plt.colorbar(im, ax=ax)
     cbar.set_label("Score Difference from Baseline", rotation=270, labelpad=20)

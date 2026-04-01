@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src.utils.heatmaps import generate_heatmap  # noqa: E402
-from src.core.layer_config import layer_spec_string  # noqa: E402
+from src.core.layer_config import ij_to_layers, layer_spec_string  # noqa: E402
 from src.utils.math_eq_analysis import (  # noqa: E402
     METHOD_BALANCED,
     build_balanced_rows,
@@ -59,6 +59,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--top-n", type=int, default=10, help="Top N configs.")
     parser.add_argument("--title", default=None, help="Optional title prefix.")
+    parser.add_argument(
+        "--plot-scatter",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Write balanced_scatter_delta.png (math vs EQ deltas).",
+    )
+    parser.add_argument(
+        "--plot-heatmap",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Write balanced_heatmap_score.png (Method B score on an i,j grid).",
+    )
     return parser.parse_args()
 
 
@@ -128,32 +140,46 @@ def _make_centered_norm(values: list[float]) -> TwoSlopeNorm | None:
     return TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
 
 
+def _key_to_ij(num_layers: int, key: tuple[int, ...]) -> tuple[int, int] | None:
+    """Map a result key to legacy (i, j) when it matches a single-block relayer config."""
+    if len(key) == 2:
+        return int(key[0]), int(key[1])
+    layers_list = list(int(x) for x in key)
+    if ij_to_layers(num_layers, 0, 0) == layers_list:
+        return (0, 0)
+    for j in range(num_layers + 1):
+        for i in range(j):
+            if ij_to_layers(num_layers, i, j) == layers_list:
+                return (i, j)
+    return None
+
+
 def write_balanced_heatmap(
     rows: list[dict[str, Any]],
-    baseline_key: tuple[int, ...],
     num_layers: int,
     title: str,
     out_path: Path,
-) -> None:
-    if len(baseline_key) != 2:
-        return
-    heatmap_scores: dict[tuple[int, int], float] = {tuple(int(x) for x in baseline_key): 0.0}
+) -> bool:
+    """Fill an (i, j) grid with Method B scores. Baseline (0, 0) is always 0."""
+    heatmap_scores: dict[tuple[int, int], float] = {(0, 0): 0.0}
     for row in rows:
-        key = tuple(row["key"])
-        if len(key) == 2:
-            heatmap_scores[(int(key[0]), int(key[1]))] = row[METHOD_BALANCED]
-    if not heatmap_scores:
-        return
+        key = tuple(int(x) for x in row["key"])
+        ij = _key_to_ij(num_layers, key)
+        if ij is None:
+            continue
+        heatmap_scores[ij] = float(row[METHOD_BALANCED])
+    if len(heatmap_scores) <= 1:
+        return False
     norm = _make_centered_norm(list(heatmap_scores.values()))
     generate_heatmap(
         heatmap_scores,
         title,
         out_path,
         num_layers,
-        cmap="viridis",
         mask_missing=False,
         norm=norm,
     )
+    return True
 
 
 def infer_num_layers_from_keys(keys: set[tuple[int, ...]]) -> int:
@@ -267,24 +293,25 @@ def main() -> None:
         pickle.dump(analysis_scores, f)
 
     top_rows = write_top_outputs(rows, args.top_n, out_dir, num_layers)
-    plot_balanced_scatter(
-        rows,
-        f"{title_prefix} - {METHOD_BALANCED} (delta scatter)",
-        out_dir / "balanced_scatter_delta.png",
-        top_rows,
-    )
-    pair_rows = [row for row in rows if len(tuple(row["key"])) == 2]
-    if pair_rows and len(baseline_key) == 2:
-        heatmap_layers = max(max(int(k[0]), int(k[1])) for k in [tuple(row["key"]) for row in pair_rows] + [baseline_key])
-        write_balanced_heatmap(
-            pair_rows,
-            baseline_key,
-            heatmap_layers,
-            f"{title_prefix} - {METHOD_BALANCED} score heatmap",
+    if args.plot_scatter:
+        plot_balanced_scatter(
+            rows,
+            f"{title_prefix} - {METHOD_BALANCED} (delta scatter)",
+            out_dir / "balanced_scatter_delta.png",
+            top_rows,
+        )
+    if args.plot_heatmap:
+        wrote = write_balanced_heatmap(
+            rows,
+            num_layers,
+            f"{title_prefix} - {METHOD_BALANCED} score heatmap (i, j)",
             out_dir / "balanced_heatmap_score.png",
         )
-    else:
-        warnings.append("Skipped balanced heatmap: non-(i,j) keyspace.")
+        if not wrote:
+            warnings.append(
+                "Skipped balanced heatmap: no keys mapped to single-block (i, j) "
+                "(need legacy (i,j) keys or canonical layer lists from the standard single-block sweep)."
+            )
 
     summary = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
